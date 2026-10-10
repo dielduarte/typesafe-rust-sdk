@@ -1,0 +1,20 @@
+[package]
+name = "typesafe-macros"
+description = "Derive macros for the TypeSafe Rust SDK"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1.0.107"
+quote = "1.0.47"
+syn = "2.0.119"
+
+[lints]
+workspace = true

@@ -1,0 +1,17 @@
+error[E0080]: evaluation panicked: a score question needs at least two rubric entries
+ --> $RUST/core/src/panic.rs
+  |
+  = note: evaluation of `<typesafe::Score<1> as typesafe::TypedQuestion>::CHECK` failed here
+  |
+ ::: src/typed.rs
+  |
+  |     const CHECK: () = assert!(N >= 2, "a score question needs at least two rubric entries");
+  |                       --------------------------------------------------------------------- in this macro invocation
+
+note: erroneous constant encountered
+ --> tests/ui/score_needs_two_entries.rs:3:10
+  |
+3 | #[derive(QuestionSet)]
+  |          ^^^^^^^^^^^
+  |
+  = note: this note originates in the derive macro `QuestionSet` (in Nightly builds, run with -Z macro-backtrace for more info)

@@ -1,0 +1,20 @@
+error[E0004]: non-exhaustive patterns: `Tone::Angry` not covered
+  --> tests/ui/choice_match_is_exhaustive.rs:15:11
+   |
+15 |     match answers.tone.choice {
+   |           ^^^^^^^^^^^^^^^^^^^ pattern `Tone::Angry` not covered
+   |
+note: `Tone` defined here
+  --> tests/ui/choice_match_is_exhaustive.rs:4:6
+   |
+ 4 | enum Tone {
+   |      ^^^^
+ 5 |     Calm,
+ 6 |     Angry,
+   |     ----- not covered
+   = note: the matched value is of type `Tone`
+help: ensure that all possible cases are being handled by adding a match arm with a wildcard pattern or an explicit pattern as shown
+   |
+16 ~         Tone::Calm => "queue",
+17 ~         Tone::Angry => todo!(),
+   |

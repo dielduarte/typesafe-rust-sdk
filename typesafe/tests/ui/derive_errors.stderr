@@ -1,0 +1,29 @@
+error: Choices variants can't have fields
+ --> tests/ui/derive_errors.rs:5:5
+  |
+5 |     Calm(u8),
+  |     ^^^^^^^^
+
+error: duplicate choice label "calm"
+  --> tests/ui/derive_errors.rs:11:22
+   |
+11 |     #[choice(label = "calm")]
+   |                      ^^^^^^
+
+error: QuestionSet needs a struct with named fields
+  --> tests/ui/derive_errors.rs:16:8
+   |
+16 | struct Tuple(typesafe::Noul);
+   |        ^^^^^
+
+error: duplicate question name "q"
+  --> tests/ui/derive_errors.rs:22:25
+   |
+22 |     #[question(rename = "q")]
+   |                         ^^^
+
+error: first used here
+  --> tests/ui/derive_errors.rs:20:25
+   |
+20 |     #[question(rename = "q")]
+   |                         ^^^
