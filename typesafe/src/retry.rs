@@ -1,6 +1,6 @@
 //! Retry policy, backoff, and `Retry-After` parsing.
 
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 use std::hash::{BuildHasher, Hasher, RandomState};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -30,7 +30,7 @@ pub struct RetryPolicy {
     /// Fraction of each backoff delay randomly subtracted, from 0 to 1. Default: 0.25.
     pub backoff_jitter: f64,
     /// HTTP statuses to retry. Default: 408, 429, and 500–599.
-    pub http_statuses: HashSet<StatusCode>,
+    pub http_statuses: BTreeSet<StatusCode>,
     /// Honor `retry-after-ms` and `Retry-After` up to `max_retry_after`. Default: true.
     pub respect_retry_after: bool,
     /// Longest server-requested delay to honor; longer ones fall back to backoff. Default: 60s.

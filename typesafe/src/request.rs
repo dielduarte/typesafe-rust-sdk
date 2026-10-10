@@ -142,7 +142,7 @@ impl<T> ApiRequest<T> {
             tag: &tag,
             method: self.method,
             url: format!("{}{}", inner.base_url, self.path),
-            headers: build_headers(&inner.default_headers, self.headers, &inner.api_key, self.body.is_some()),
+            headers: build_headers(&inner.default_headers, self.headers, &inner.auth, self.body.is_some()),
             body: self.body,
             timeout,
             retry,
@@ -201,13 +201,10 @@ impl<T> std::fmt::Debug for ApiRequest<T> {
 }
 
 /// Default headers, then per-call headers, then SDK headers, which always win.
-fn build_headers(defaults: &HeaderMap, per_call: HeaderMap, api_key: &str, has_body: bool) -> HeaderMap {
+fn build_headers(defaults: &HeaderMap, per_call: HeaderMap, auth: &HeaderValue, has_body: bool) -> HeaderMap {
     let mut headers = defaults.clone();
     headers.extend(per_call);
-    let mut auth = HeaderValue::from_str(&format!("Bearer {api_key}"))
-        .unwrap_or_else(|_| HeaderValue::from_static("Bearer <invalid key>"));
-    auth.set_sensitive(true);
-    headers.insert(header::AUTHORIZATION, auth);
+    headers.insert(header::AUTHORIZATION, auth.clone());
     headers.insert(header::ACCEPT, HeaderValue::from_static("application/json"));
     headers.insert(header::USER_AGENT, SDK_ID.clone());
     headers.insert(SDK_HEADER, SDK_ID.clone());
@@ -343,13 +340,13 @@ mod tests {
         per_call.insert("content-type", HeaderValue::from_static("text/plain"));
         per_call.insert("x-typesafe-retry-count", HeaderValue::from_static("9"));
 
-        let headers = build_headers(&defaults, per_call, "key", false);
+        let headers = build_headers(&defaults, per_call, &HeaderValue::from_static("Bearer key"), false);
         assert_eq!(headers["x-team"], "call");
         assert_eq!(headers["authorization"], "Bearer key");
         assert!(headers.get("content-type").is_none());
         assert!(headers.get("x-typesafe-retry-count").is_none());
 
-        let with_body = build_headers(&defaults, HeaderMap::new(), "key", true);
+        let with_body = build_headers(&defaults, HeaderMap::new(), &HeaderValue::from_static("Bearer key"), true);
         assert_eq!(with_body["content-type"], "application/json");
     }
 

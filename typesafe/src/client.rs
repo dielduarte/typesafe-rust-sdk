@@ -59,7 +59,8 @@ pub struct Client {
 
 pub(crate) struct Inner {
     pub(crate) http: reqwest::Client,
-    pub(crate) api_key: String,
+    /// `Bearer <api key>`, validated and marked sensitive at build time.
+    pub(crate) auth: HeaderValue,
     pub(crate) base_url: String,
     pub(crate) default_model: String,
     pub(crate) retry: RetryPolicy,
@@ -255,8 +256,12 @@ impl ClientBuilder {
             ))
         })?;
         let base_url = self.base_url.or_else(|| from_env(env::BASE_URL)).unwrap_or_else(|| DEFAULT_BASE_URL.into());
+        let auth = auth_header(&api_key).map_err(config)?;
         let base_url = base_url.trim_end_matches('/').to_owned();
-        reqwest::Url::parse(&base_url).map_err(|e| config(format!("Invalid base URL {base_url:?}: {e}")))?;
+        let url = reqwest::Url::parse(&base_url).map_err(|e| config(format!("Invalid base URL {base_url:?}: {e}")))?;
+        if !matches!(url.scheme(), "http" | "https") {
+            return Err(config(format!("Invalid base URL {base_url:?}: the scheme must be http or https.")));
+        }
         let default_model =
             self.default_model.or_else(|| from_env(env::DEFAULT_MODEL)).unwrap_or_else(|| DEFAULT_MODEL.into());
         let retry = self.retry.unwrap_or_default();
@@ -273,7 +278,7 @@ impl ClientBuilder {
         Ok(Client {
             inner: Arc::new(Inner {
                 http,
-                api_key,
+                auth,
                 base_url,
                 default_model,
                 retry,
@@ -283,6 +288,23 @@ impl ClientBuilder {
             }),
         })
     }
+}
+
+/// Reject keys that can't be sent: empty, or containing whitespace or control characters.
+fn auth_header(api_key: &str) -> Result<HeaderValue, String> {
+    let invalid = |why: &str| Err(format!("The API key is invalid: {why}."));
+    if api_key.is_empty() {
+        return invalid("it is empty");
+    }
+    if !api_key.is_ascii() {
+        return invalid("it is not ASCII");
+    }
+    if api_key.chars().any(|c| c.is_ascii_whitespace() || c.is_ascii_control()) {
+        return invalid("it contains whitespace or control characters");
+    }
+    let mut value = HeaderValue::from_str(&format!("Bearer {api_key}")).or_else(|_| invalid("it is not ASCII"))?;
+    value.set_sensitive(true);
+    Ok(value)
 }
 
 pub(crate) fn validate_timeout(timeout: Duration) -> Result<(), String> {
@@ -326,13 +348,13 @@ mod tests {
         let vars =
             [(env::API_KEY, " env-key "), (env::BASE_URL, "https://env.test//"), (env::DEFAULT_MODEL, "env-model")];
         let from_env = build(Client::builder(), &vars).unwrap();
-        assert_eq!(from_env.inner.api_key, "env-key");
+        assert_eq!(from_env.inner.auth, "Bearer env-key");
         assert_eq!(from_env.base_url(), "https://env.test");
         assert_eq!(from_env.default_model(), "env-model");
 
         let from_code =
             build(Client::builder().api_key("code").base_url("https://code.test").default_model("m"), &vars).unwrap();
-        assert_eq!(from_code.inner.api_key, "code");
+        assert_eq!(from_code.inner.auth, "Bearer code");
         assert_eq!(from_code.base_url(), "https://code.test");
         assert_eq!(from_code.default_model(), "m");
     }
@@ -348,8 +370,27 @@ mod tests {
         let invalid = |b: ClientBuilder| matches!(build(b.api_key("k"), &[]), Err(Error::Config(_)));
         assert!(invalid(Client::builder().timeout(Duration::ZERO)));
         assert!(invalid(Client::builder().base_url("not a url")));
+        assert!(invalid(Client::builder().base_url("ftp://api.typesafe.ai")));
         assert!(invalid(Client::builder().default_header("bad header", "v")));
         assert!(invalid(Client::builder().retry_policy(RetryPolicy { backoff_jitter: 2.0, ..Default::default() })));
+    }
+
+    #[test]
+    fn rejects_unsendable_api_keys() {
+        for key in ["", "sk_abc\n", "sk abc", "sk_ключ"] {
+            let err = build(Client::builder().api_key(key), &[]).unwrap_err();
+            assert!(err.to_string().starts_with("The API key is invalid"), "{key:?}: {err}");
+            assert!(!err.to_string().contains(key) || key.is_empty(), "the key is not echoed back");
+        }
+    }
+
+    #[test]
+    fn client_and_requests_can_cross_threads() {
+        fn assert_send_sync<T: Send + Sync + 'static>() {}
+        fn assert_send<T: Send + 'static>() {}
+        assert_send_sync::<Client>();
+        assert_send_sync::<Error>();
+        assert_send::<crate::ApiRequest<crate::SystemOneResponse>>();
     }
 
     #[test]

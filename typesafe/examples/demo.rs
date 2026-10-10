@@ -50,7 +50,8 @@ async fn main() -> Result<(), Error> {
             let TriageAnswers { is_billing, sentiment, urgency, refund_risk } = response.answers;
             println!("billing?     {:.2}", is_billing.noul);
             println!("tone         {:?} ({:.2})", sentiment.choice, sentiment.probabilities[sentiment.choice]);
-            println!("urgency      {:.2} on a 0-3 scale: {:?}", urgency.score, urgency.legend);
+            let legend: Vec<&str> = urgency.legend.iter().filter_map(|v| v.as_str()).collect();
+            println!("urgency      {:.2} on a 0-3 scale: {}", urgency.score, legend.join(" / "));
             println!("refund risk  {:.2} ({:.2} confidence)", refund_risk.score, refund_risk.confidence);
             println!("tokens       {} in / {} out", response.usage.input_tokens, response.usage.output_tokens);
         }
